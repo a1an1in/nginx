@@ -318,6 +318,9 @@ static ngx_http_variable_t  ngx_http_core_variables[] = {
     { ngx_string("sent_http_cache_control"), NULL, ngx_http_variable_headers,
       offsetof(ngx_http_request_t, headers_out.cache_control), 0, 0 },
 
+    { ngx_string("sent_http_link"), NULL, ngx_http_variable_headers,
+      offsetof(ngx_http_request_t, headers_out.link), 0, 0 },
+
     { ngx_string("limit_rate"), ngx_http_variable_request_set_size,
       ngx_http_variable_request_get_size,
       offsetof(ngx_http_request_t, limit_rate),
@@ -426,7 +429,9 @@ ngx_http_add_variable(ngx_conf_t *cf, ngx_str_t *name, ngx_uint_t flags)
             return NULL;
         }
 
-        v->flags &= flags | ~NGX_HTTP_VAR_WEAK;
+        if (!(flags & NGX_HTTP_VAR_WEAK)) {
+            v->flags &= ~NGX_HTTP_VAR_WEAK;
+        }
 
         return v;
     }
@@ -491,7 +496,9 @@ ngx_http_add_prefix_variable(ngx_conf_t *cf, ngx_str_t *name, ngx_uint_t flags)
             return NULL;
         }
 
-        v->flags &= flags | ~NGX_HTTP_VAR_WEAK;
+        if (!(flags & NGX_HTTP_VAR_WEAK)) {
+            v->flags &= ~NGX_HTTP_VAR_WEAK;
+        }
 
         return v;
     }
@@ -2497,7 +2504,9 @@ ngx_http_regex_exec(ngx_http_request_t *r, ngx_http_regex_t *re, ngx_str_t *s)
     if (re->ncaptures) {
         len = cmcf->ncaptures;
 
-        if (r->captures == NULL) {
+        if (r->captures == NULL || r->realloc_captures) {
+            r->realloc_captures = 0;
+
             r->captures = ngx_palloc(r->pool, len * sizeof(int));
             if (r->captures == NULL) {
                 return NGX_ERROR;
